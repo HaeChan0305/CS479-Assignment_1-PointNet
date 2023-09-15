@@ -20,9 +20,11 @@ def step(points, labels, model):
     """
     
     # TODO : Implement step function for classification.
-
-    loss = None
-    preds = None
+    outputs = model(points)
+    targets = F.one_hot(labels)
+    
+    loss = sum(sum(-torch.log(outputs) * targets)) #[]
+    preds = torch.argmax(outputs, 1) #[B]
     return loss, preds
 
 
@@ -31,6 +33,8 @@ def train_step(points, labels, model, optimizer, train_acc_metric):
     train_batch_acc = train_acc_metric(preds, labels.to(device))
 
     # TODO : Implement backpropagation using optimizer and loss
+    loss.backward()
+    optimizer.step()
 
     return loss, train_batch_acc
 

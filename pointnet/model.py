@@ -33,7 +33,7 @@ class STNKd(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = torch.max(x, 2)[0]
+        x = torch.max(x, 2)[0] # 이거 하면 알아서 (B, 1024)로 transpose됨
 
         x = self.fc(x)
         
@@ -69,7 +69,12 @@ class PointNetFeat(nn.Module):
 
         # point-wise mlp
         # TODO : Implement point-wise mlp model based on PointNet Architecture.
-
+        self.conv1 = nn.Sequential(nn.Conv1d(3, 64, 1), nn.BatchNorm1d(64))
+        self.conv2 = nn.Sequential(nn.Conv1d(64, 64, 1), nn.BatchNorm1d(64))
+        self.conv3 = nn.Sequential(nn.Conv1d(64, 64, 1), nn.BatchNorm1d(64))
+        self.conv4 = nn.Sequential(nn.Conv1d(64, 128, 1), nn.BatchNorm1d(128))
+        self.conv5 = nn.Sequential(nn.Conv1d(128, 1024, 1), nn.BatchNorm1d(1024))
+        
     def forward(self, pointcloud):
         """
         Input:
@@ -80,7 +85,25 @@ class PointNetFeat(nn.Module):
         """
 
         # TODO : Implement forward function.
-        pass
+        N = pointcloud.shape[1]
+        transform1 = self.stn3(torch.transpose(pointcloud, 1, 2)) #[3,3]
+        x = torch.matmul(pointcloud, transform1) #[B,N,3]
+
+        x = torch.transpose(x, 1, 2) #[B,3,N]
+        x = F.relu(self.conv1(x)) #[B,64,N]
+        x = F.relu(self.conv2(x)) #[B,64,N]
+
+        x = torch.transpose(x, 1, 2) #[B,N,64]
+        transform2 = self.stn64(x) #[64,64]
+        x = torch.matmul(x, transform2) #[B,N,64]
+
+        x = torch.transpose(x, 1, 2) #[B,64,N]
+        x = F.relu(self.conv3(x)) #[B,64,N]
+        x = F.relu(self.conv4(x)) #[B,128,N]
+        x = F.relu(self.conv5(x)) #[B,1024,N]
+
+        x = torch.max(x, 2)[0] #[B,1024]
+        return x
 
 
 class PointNetCls(nn.Module):
@@ -93,6 +116,15 @@ class PointNetCls(nn.Module):
         
         # returns the final logits from the max-pooled features.
         # TODO : Implement MLP that takes global feature as an input and return logits.
+        self.mlp = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Linear(256, num_classes),
+        )
 
     def forward(self, pointcloud):
         """
@@ -103,7 +135,10 @@ class PointNetCls(nn.Module):
             - ...
         """
         # TODO : Implement forward function.
-        pass
+        global_feature = self.pointnet_feat(pointcloud)
+        output_scores = self.mlp(global_feature)
+
+        return F.softmax(output_scores)
 
 
 class PointNetPartSeg(nn.Module):
