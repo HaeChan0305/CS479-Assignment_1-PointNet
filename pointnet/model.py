@@ -105,6 +105,7 @@ class PointNetFeat(nn.Module):
             local_feature = x.clone().detach() # For Part Segmentation
             x = torch.transpose(x, 1, 2) #[B,64,N]
         else:
+            local_feature = None
             transform2 = None
         
         # mlp(64,128,1024)
