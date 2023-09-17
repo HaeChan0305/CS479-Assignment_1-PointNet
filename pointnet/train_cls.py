@@ -20,11 +20,15 @@ def step(points, labels, model):
     """
     
     # TODO : Implement step function for classification.
-    outputs = model(points)
-    targets = F.one_hot(labels)
+    outputs, transform1, transform2 = model(points.to(device))
+    outputs.to(device), transform1.to(device), transform2.to(device)
+    targets = F.one_hot(labels.to(device), num_classes=40).to(device)
     
-    loss = sum(sum(-torch.log(outputs) * targets)) #[]
-    preds = torch.argmax(outputs, 1) #[B]
+    loss_reg1 = get_orthogonal_loss(transform1)
+    loss_reg2 = get_orthogonal_loss(transform2)
+    loss = sum(sum(-outputs * targets)).to(device) + loss_reg1 + loss_reg2 #[]
+    preds = torch.argmax(outputs, 1).to(device) #[B]
+
     return loss, preds
 
 
@@ -33,6 +37,7 @@ def train_step(points, labels, model, optimizer, train_acc_metric):
     train_batch_acc = train_acc_metric(preds, labels.to(device))
 
     # TODO : Implement backpropagation using optimizer and loss
+    optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 

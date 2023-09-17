@@ -25,11 +25,17 @@ def step(points, pc_labels, class_labels, model):
     """
     
     # TODO : Implement step function for segmentation.
+    logits, transform1, transform2 = model(points.to(device)) #[B,N,C]
+    logits.to(device), transform1.to(device), transform2.to(device)
 
-    loss = None
-    logits = None
-    preds = None
-    return loss, logits, preds
+    targets = F.one_hot(pc_labels.to(device), num_classes=50).to(device)
+    
+    loss_reg1 = get_orthogonal_loss(transform1)
+    loss_reg2 = get_orthogonal_loss(transform2)
+    loss = sum(sum(sum(-logits * targets)).to(device)) + loss_reg1 + loss_reg2 #[]
+    preds = torch.argmax(logits, -1).to(device) #[B,N]
+
+    return loss, torch.transpose(logits, 1, 2), preds
 
 
 def train_step(points, pc_labels, class_labels, model, optimizer, train_acc_metric):
@@ -39,6 +45,9 @@ def train_step(points, pc_labels, class_labels, model, optimizer, train_acc_metr
     train_batch_acc = train_acc_metric(preds, pc_labels.to(device))
 
     # TODO : Implement backpropagation using optimizer and loss
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
     return loss, train_batch_acc
 

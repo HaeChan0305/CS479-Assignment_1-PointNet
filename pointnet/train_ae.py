@@ -24,8 +24,8 @@ def step(points, model):
     # Hint : Use chamferDist defined in above
     # Hint : You can compute chamfer distance between two point cloud pc1 and pc2 by chamfer_distance(pc1, pc2)
     
-    preds = None
-    loss = None
+    preds = model(points.to(device))
+    loss = chamfer_distance(points, preds)[0]
 
     return loss, preds
 
@@ -34,6 +34,9 @@ def train_step(points, model, optimizer):
     loss, preds = step(points, model)
 
     # TODO : Implement backpropagation using optimizer and loss
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
     return loss, preds
 
